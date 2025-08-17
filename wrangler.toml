@@ -1,0 +1,8 @@
+name = "synergy-project-management"
+compatibility_date = "2024-08-17"
+send_metrics = false
+
+[env.production]
+account_id = ""
+route = ""
+zone_id = ""
