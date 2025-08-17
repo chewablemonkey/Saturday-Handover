@@ -7,6 +7,9 @@ interface SettingsPageProps {
   onSaveUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
   onToggleFeature: (feature: string) => void;
+  onExportData?: () => string;
+  onImportData?: (jsonData: string) => boolean;
+  onClearData?: () => void;
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -15,6 +18,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   onSaveUser,
   onDeleteUser,
   onToggleFeature,
+  onExportData,
+  onImportData,
+  onClearData,
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'features' | 'project'>('users');
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -25,6 +31,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     avatarUrl: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [importText, setImportText] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
 
   const tabs = [
     { key: 'users', label: 'Team Members', icon: '👥' },
@@ -94,6 +104,61 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     const randomId = Math.floor(Math.random() * 100);
     const newUrl = `https://picsum.photos/id/${randomId}/32/32`;
     setUserForm(prev => ({ ...prev, avatarUrl: newUrl }));
+  };
+
+  const handleExportData = () => {
+    if (!onExportData) return;
+    
+    const data = onExportData();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `synergy-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
+  };
+
+  const handleImportData = () => {
+    if (!onImportData || !importText.trim()) return;
+    
+    try {
+      const success = onImportData(importText);
+      if (success) {
+        setImportSuccess(true);
+        setTimeout(() => setImportSuccess(false), 3000);
+        setShowImportModal(false);
+        setImportText('');
+      } else {
+        alert('Failed to import data. Please check the format.');
+      }
+    } catch (error) {
+      alert('Invalid JSON format. Please check your data.');
+    }
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setImportText(content);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleClearAllData = () => {
+    if (window.confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+      onClearData?.();
+      alert('All data has been cleared.');
+    }
   };
 
   const renderUsersTab = () => (
@@ -372,21 +437,95 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="font-semibold text-gray-900 mb-4">Data & Privacy</h4>
-          <div className="space-y-3">
-            <button className="btn btn-secondary w-full md:w-auto">
-              📥 Export Project Data
-            </button>
-            <button className="btn btn-secondary w-full md:w-auto">
-              🔄 Backup Project
-            </button>
-            <button className="btn btn-danger w-full md:w-auto">
-              🗑️ Delete Project
-            </button>
+          <h4 className="font-semibold text-gray-900 mb-4">Data Management</h4>
+          <div className="space-y-4">
+            {/* Export Data */}
+            <div>
+              <button 
+                onClick={handleExportData}
+                className="btn btn-secondary w-full md:w-auto"
+                disabled={!onExportData}
+              >
+                📥 Export All Data
+              </button>
+              {exportSuccess && (
+                <p className="text-green-600 text-sm mt-1">✅ Data exported successfully!</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Download a backup of all your project data
+              </p>
+            </div>
+
+            {/* Import Data */}
+            <div>
+              <button 
+                onClick={() => setShowImportModal(true)}
+                className="btn btn-secondary w-full md:w-auto"
+                disabled={!onImportData}
+              >
+                📤 Import Data
+              </button>
+              {importSuccess && (
+                <p className="text-green-600 text-sm mt-1">✅ Data imported successfully!</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Restore data from a backup file
+              </p>
+            </div>
+
+            {/* Clear Data */}
+            <div>
+              <button 
+                onClick={handleClearAllData}
+                className="btn btn-danger w-full md:w-auto"
+                disabled={!onClearData}
+              >
+                🗑️ Clear All Data
+              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                ⚠️ This will permanently delete all data
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 mt-3">
-            ⚠️ Deleted projects cannot be recovered
-          </p>
+        </div>
+        
+        {/* Real-time Collaboration */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h4 className="font-semibold text-gray-900 mb-4">Collaboration</h4>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h5 className="font-medium text-gray-900">Real-time sync</h5>
+                <p className="text-sm text-gray-600">Changes are automatically saved and synced</p>
+              </div>
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm">Active</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <h5 className="font-medium text-gray-900">Cross-device sync</h5>
+                <p className="text-sm text-gray-600">Access your data from any device or browser</p>
+              </div>
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm">Active</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <h5 className="font-medium text-gray-900">Live user activity</h5>
+                <p className="text-sm text-gray-600">See who's working on the project in real-time</p>
+              </div>
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm">Active</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -425,6 +564,71 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           {activeTab === 'project' && renderProjectTab()}
         </div>
       </div>
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="modal-overlay fixed inset-0" onClick={() => setShowImportModal(false)}></div>
+            
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full animate-slide-in-up">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Import Data</h3>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="btn btn-ghost p-2 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Import from file
+                  </label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileImport}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="text-center text-gray-500">OR</div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Paste JSON data
+                  </label>
+                  <textarea
+                    value={importText}
+                    onChange={(e) => setImportText(e.target.value)}
+                    className="form-textarea h-32"
+                    placeholder="Paste your exported JSON data here..."
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowImportModal(false)}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleImportData}
+                    disabled={!importText.trim()}
+                    className="btn btn-primary"
+                  >
+                    Import Data
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
