@@ -103,14 +103,13 @@ send_metrics = false
 /*    /index.html   200
 ```
 
-## 🚀 Automatic Deployment
+## 🚀 Automatic Deployment (GitHub Integration)
 
-The project includes GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically:
-1. Builds the project on every push to main/feature branches
-2. Deploys to Cloudflare Pages
-3. Requires these GitHub repository secrets:
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
+Cloudflare Pages can automatically deploy from your GitHub repository:
+1. Connect your repository to Cloudflare Pages
+2. Set build command to `npm run build` and output directory to `dist`
+3. Every push to main branch will trigger automatic deployment
+4. Optional: Set environment variables like `GEMINI_API_KEY` in Pages settings
 
 ## 📊 Features Available After Deployment
 
